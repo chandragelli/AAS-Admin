@@ -78,12 +78,10 @@ do {
         Write-Output "(RunId:$runId) Get list of partitions started at $(Get-Date)"
         $dataSet = Invoke-Sqlcmd -ConnectionString $connString -Query $procParams -As DataSet
         Write-Output "(RunId:$runId) Get list of partitions ended at $(Get-Date)"
-
-        #Write-Output $dataSet.Tables.Count
-
+        
         #get data tables from data set and set them in appropriate tables
         #if first table has process operation("P"), then there are no admin operations to be performed
-        if($dataSet.Tables.Count -gt 0){
+         if($dataSet.Tables.Count -gt 0){
          if($dataSet.Tables[0].Rows[0].ADMN_OPR_CD -eq "P"){
              $dataTableProcess = $dataSet.Tables[0]
              $dataTableAdmin = $dataSet.Tables[1]
@@ -228,12 +226,14 @@ do {
               if($isPartitionExisting){
                 $processFlag = "True"          
                 $processTMSLCommand =  "$processTMSLCommand {`"database`":`"$iCubeNAme`", `"table`": `"$iTableName`",`"partition`": `"$iPartitionName`"},"
+                $partitionList = "$partitionList '$iPartitionName',"
               }
 
              # Run process partition command if it gets a chunk
              if($i%$partitionCount -eq 0 -or ($processPartitionsCount -lt $partitionCount -and $i -eq $dataTableProcess.Rows.Count) -and ($processFlag -eq "True"))
               {
                  $processTMSLCommand = $processTMSLCommand.Substring(0,$processTMSLCommand.Length-1) + ']}}'
+                 $partitionList = $partitionList.Substring(0,$partitionList.Length-1) 
                  Write-Output "(RunId:$runId) Partition Process JSON: $processTMSLCommand"
                  Write-Output "(RunId:$runId) Partition process started at $(Get-Date)"
                  $AsCmdResponse = Invoke-AsCmd -Server $iServerName -ServicePrincipal -Credential $credential -Query $processTMSLCommand
@@ -245,9 +245,17 @@ do {
                  }
                  Write-Output "(RunId:$runId) Partition process ended at $(Get-Date)" 
 
+                 #disable flag in DB table for paritions that are processed as a "checkpoint"
+                $procParams = "UPDATE CTRLDB.TOAPW_OBJ_ADMN_PROC_WRK SET ACTV_REC_IND = 'N'  WHERE PARTN_NM IN ($partitionList) AND APP_NM = '$appName' AND SRVR_NM = '$iServerName'  AND SCH_NM = '$iCubeNAme' AND  ADMN_OPR_CD = 'P'"
+                Write-Output $procParams
+                Write-Output "(RunId:$runId) Disable partition process flag(checkpoint) started at $(Get-Date)"
+                Invoke-Sqlcmd -ConnectionString $connString -Query $procParams 
+                Write-Output "(RunId:$runId) Disable partition process flag(checkpoint) ended at $(Get-Date)"
+
                  #reset variables
                  $processFlag = "False"
                  $processTMSLCommand = '{"refresh": { "type": "full","objects": [ '
+                 $partitionList = ""
 
               }
               $i = $i + 1
@@ -286,6 +294,9 @@ do {
           Start-Sleep -Seconds $retryInterval
           Write-Output "(RunId:$runId) Retry interval ended at $(Get-Date)"
           Write-Output "(RunId:$runId) Script is getting retried with remaining retry attempts: $retryCount"
+          $dataSet = ""
+          $dataTableAdmin = ""
+          $dataTableProcess = ""
         }
     }
 }
