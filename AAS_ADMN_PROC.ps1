@@ -246,7 +246,7 @@ do {
                  Write-Output "(RunId:$runId) Partition process ended at $(Get-Date)" 
 
                  #disable flag in DB table for paritions that are processed as a "checkpoint"
-                $procParams = "UPDATE CTRLDB.TOAPW_OBJ_ADMN_PROC_WRK SET ACTV_REC_IND = 'N'  WHERE PARTN_NM IN ($partitionList) AND APP_NM = '$appName' AND SRVR_NM = '$iServerName'  AND SCH_NM = '$iCubeNAme' AND  ADMN_OPR_CD = 'P' AND ADH_IND='N'"
+                $procParams = "UPDATE CTRLDB.TOAPW_OBJ_ADMN_PROC_WRK SET ACTV_REC_IND = 'N'  WHERE PARTN_NM IN ($partitionList) AND APP_NM = '$appName' AND SRVR_NM = '$iServerName'  AND SCH_NM = '$iCubeNAme' AND  ADMN_OPR_CD = 'P' AND ADH_IND='Y'"
                 Write-Output $procParams
                 Write-Output "(RunId:$runId) Disable partition process flag(checkpoint) started at $(Get-Date)"
                 Invoke-Sqlcmd -ConnectionString $connString -Query $procParams 
