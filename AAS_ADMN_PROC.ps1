@@ -63,7 +63,7 @@ do {
         $connString = (Get-AzureKeyVaultSecret -VaultName $kvName -Name $kvSecretName).SecretValueText
         Write-Output "(RunId:$runId) Connection string reading from Key Vault ended at $(Get-Date)"
 
-        $jobName = "AAS_ADMN_PROC"
+        $jobName = "CUBE_ADMN_PROC"
         $procParams = "exec CTRLDB.Sp_InitializeProcess '$jobName','$cubeName',1,'$appName','$runId'"
 
         
@@ -246,7 +246,7 @@ do {
                  Write-Output "(RunId:$runId) Partition process ended at $(Get-Date)" 
 
                  #disable flag in DB table for paritions that are processed as a "checkpoint"
-                $procParams = "UPDATE CTRLDB.TOAPW_OBJ_ADMN_PROC_WRK SET ACTV_REC_IND = 'N'  WHERE PARTN_NM IN ($partitionList) AND APP_NM = '$appName' AND SRVR_NM = '$iServerName'  AND SCH_NM = '$iCubeNAme' AND  ADMN_OPR_CD = 'P'"
+                $procParams = "UPDATE CTRLDB.TOAPW_OBJ_ADMN_PROC_WRK SET ACTV_REC_IND = 'N'  WHERE PARTN_NM IN ($partitionList) AND APP_NM = '$appName' AND SRVR_NM = '$iServerName'  AND SCH_NM = '$iCubeNAme' AND  ADMN_OPR_CD = 'P' AND ADH_IND='N'"
                 Write-Output $procParams
                 Write-Output "(RunId:$runId) Disable partition process flag(checkpoint) started at $(Get-Date)"
                 Invoke-Sqlcmd -ConnectionString $connString -Query $procParams 
@@ -256,6 +256,9 @@ do {
                  $processFlag = "False"
                  $processTMSLCommand = '{"refresh": { "type": "full","objects": [ '
                  $partitionList = ""
+
+                 #temp
+                 #Throw "partition process - manual error for checkpoint test"
 
               }
               $i = $i + 1
