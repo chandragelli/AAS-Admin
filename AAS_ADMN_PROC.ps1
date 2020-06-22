@@ -14,7 +14,10 @@ High-level steps:
     2. Chunk the number of partitions by partition count defined in meta-data
     3. Execute the command once it gets a chunk
     4. Repeat the steps until all partitions are processed 
-        
+
+Change Log:
+6-22-2020: FPDD changes
+
 #>
 
 #Define parameters
