@@ -63,7 +63,7 @@ do {
         $connString = (Get-AzureKeyVaultSecret -VaultName $kvName -Name $kvSecretName).SecretValueText
         Write-Output "(RunId:$runId) Connection string reading from Key Vault ended at $(Get-Date)"
 
-        $jobName = "CUBE_ADMN_PROC"
+        $jobName = "CUBE_ADMN_PROC_$cubeName"
         $procParams = "exec CTRLDB.Sp_InitializeProcess '$jobName','$cubeName',1,'$appName','$runId'"
 
         
