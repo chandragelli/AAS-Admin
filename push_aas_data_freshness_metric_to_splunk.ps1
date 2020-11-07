@@ -32,7 +32,6 @@ do {
 
             # execute the MDX query and extract result value from XML
             Write-Output "Get data freshness metric for Order Cube started at $(Get-Date)"
-            Throw "Manual error to test retry"
             [xml]$xml  = Invoke-AsCmd -Server $aas_server_name -Database $cube_name -ServicePrincipal -Credential $credential -Query $mdx_query
             $latest_order_datetime = $xml.return.root.CellData.Cell.Value.'#text'
             Write-Output "Get data freshness metric for Order Cube ended at $(Get-Date)"
@@ -46,41 +45,48 @@ do {
             $response = Invoke-RestMethod -Uri $splunk_server_url -Method Post -Headers $headers  -Body $body
             Write-Output "REST method for Order cube ended at $(Get-Date)"
 
+            if($response.text -ne "Success") {
+                Throw "Error occured in the REST method when posting the message for $cube_name"
+            }
+            else {
+                Write-Output "REST method successfully posted the message for $cube_name"
+            }
+          
             # define the cube name and MDX query to get "data freshness" metric 
             $cube_name = "SupplyChainVizShipment"
-            $mdx_query = " SELECT [Measures].[Last Updated Pack Time] ON COLUMNS FROM [SupplyChainVizShipment] CELL PROPERTIES VALUE"
 
-            # execute the MDX query and extract result value from XML
-            Write-Output "Get data freshness metric for Shipment cube started at $(Get-Date)"
-            [xml]$xml  = Invoke-AsCmd -Server $aas_server_name -Database $cube_name -ServicePrincipal -Credential $credential -Query $mdx_query
-            $latest_pack_datetime = $xml.return.root.CellData.Cell.Value.'#text'
-            Write-Output "Get data freshness metric for Shipment cube ended at $(Get-Date)"
+            $markets = @("Canada", "European Union", "United Kingdom","United States","Japan")
+            foreach ($market in $markets) {
+                # execute the MDX query and extract result value from XML
+                Write-Output "Get data freshness metric for Shipment cube($market) started at $(Get-Date)"
+                $mdx_query = "SELECT  [Measures].[Last Updated Pack Time]  ON COLUMNS FROM [SupplyChainVizShipment] WHERE  [Country].[Market].&[$market]  CELL PROPERTIES VALUE"
+                [xml]$xml  = Invoke-AsCmd -Server $aas_server_name -Database $cube_name -ServicePrincipal -Credential $credential -Query $mdx_query
+                $latest_pack_datetime = $xml.return.root.CellData.Cell.Value.'#text'
+                Write-Output "Get data freshness metric for Shipment cube($market) ended at $(Get-Date)"
 
-            if($response.text -ne "Success") {
-                Throw "Error occured in the REST method when posting the message for $cube_name"
+                if($null -ne $latest_pack_datetime) {  
+                    $date = Get-Date -Format o | ForEach-Object { $_ -replace ":", "." }
+                    $body = $success_message_format.replace("cube_name_var",$cube_name)
+                    $body = $body.replace("metric_value_var",$latest_pack_datetime)
+                    $body = $body.replace("date_var",$date)
+                    $body = $body.replace('"data": {','"data": { "market":"' + $market + '",')
+                    Write-Output $body
+
+                    Write-Output "REST method for Shipment cube($market) started at $(Get-Date)"
+                    $response = Invoke-RestMethod -Uri $splunk_server_url -Method Post -Headers $headers  -Body $body
+                    Write-Output "REST method for Shipment cube($market) ended at $(Get-Date)"
+
+                    if($response.text -ne "Success") {
+                        Throw "Error occured in the REST method when posting the message for $cube_name $market"
+                    }
+                    else {
+                        Write-Output "REST method successfully posted the message for $cube_name $market"
+                        }
+                }
+
             }
-            else {
-                Write-Output "REST method successfully posted the message for $cube_name"
-            }
-            
-            $date = Get-Date -Format o | ForEach-Object { $_ -replace ":", "." }
-            $body = $success_message_format.replace("cube_name_var",$cube_name)
-            $body = $body.replace("metric_value_var",$latest_pack_datetime)
-            $body = $body.replace("date_var",$date)
-
-            Write-Output "REST method for Shipment cube started at $(Get-Date)"
-            $response = Invoke-RestMethod -Uri $splunk_server_url -Method Post -Headers $headers  -Body $body
-            Write-Output "REST method for Shipment cube ended at $(Get-Date)"
-
-            if($response.text -ne "Success") {
-                Throw "Error occured in the REST method when posting the message for $cube_name"
-            }
-            else {
-                Write-Output "REST method successfully posted the message for $cube_name"
-            }
-
             $stopFlag = "True"
-         }
+        }
     catch{
             $retry_count = $retry_count - 1
             $error_message = $error[0].Exception.Message
