@@ -32,6 +32,7 @@ Param (
     [Parameter (Mandatory = $false)]
     [int] $retryInterval = 60
 )
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback=$null
 $runId = ""
 $stopFlag = "False"
 do {
